@@ -1,9 +1,11 @@
 import mongoose from "mongoose";
+import config from "../utils/config";
 
 const ourValueSchema = new mongoose.Schema({
   icon: {
     type: String,
     required: true,
+    enum: config.icons,
   },
   title: {
     type: String,
