@@ -1,11 +1,31 @@
 import mongoose from "mongoose";
-import config from "../utils/config";
 
 const ourValueSchema = new mongoose.Schema({
   icon: {
     type: String,
     required: true,
-    enum: config.icons,
+    enum: [
+      "trust",
+      "community",
+      "quality",
+      "security",
+      "support",
+      "innovation",
+      "growth",
+      "reliability",
+      "excellence",
+      "transparency",
+      "collaboration",
+      "integrity",
+      "sustainability",
+      "customer_focus",
+      "teamwork",
+      "respect",
+      "accountability",
+      "diversity",
+      "empowerment",
+      "passion",
+    ],
   },
   title: {
     type: String,

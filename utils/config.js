@@ -62,9 +62,7 @@ const config = {
     root: process.env.UPLOADS_ROOT || "",
     allowedTypes: ["image/jpeg", "image/jpg", "image/png", "application/pdf"],
     maxSize: 10 * 1024 * 1024, // 10MB
-  },
-
-  icons: ["trust", "community", "quality", "security", "support", "innovation", "growth", "reliability", "excellence", "transparency", "collaboration", "integrity", "sustainability", "customer_focus", "teamwork", "respect", "accountability", "diversity", "empowerment", "passion"],
+  }
 };
 
 // Log the current environment (for debugging)
