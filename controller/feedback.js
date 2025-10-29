@@ -8,7 +8,7 @@ export const createFeatureRequest = async (req, res) => {
     const { title, description, userId } = req.body;
     const featureRequest = new FeatureRequest({
       title,
-      description,
+      statusMessage: description,
       userId,
     });
     await featureRequest.save();
