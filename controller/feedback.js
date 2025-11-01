@@ -90,7 +90,7 @@ export const updateFeatureRequest = async (req, res) => {
       req.params.id,
       {
         title: req.body.title,
-        description: req.body.description,
+        statusMessage: req.body.description,
       },
       { new: true }
     );

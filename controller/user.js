@@ -448,10 +448,13 @@ export const getUserByID = async (req, res) => {
 
 export const resetPassword = async (req, res) => {
   try {
-    const { userId, oldPassword, newPassword } = req.body;
+    const { userCategory, userId, oldPassword, newPassword } = req.body;
 
     // ✅ Step 1: Check if user exists
-    const user = await UserModel.findById(userId);
+    const user = await UserModel.findOne({
+      _id: userId,
+      userCategory: userCategory,
+    });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
