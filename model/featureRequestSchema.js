@@ -18,13 +18,11 @@ const featureRequestSchema = new mongoose.Schema(
     status: {
       type: String,
       default: "pending",
-      required: true,
       enum: ["pending", "accepted", "declined"],
     },
     statusMessage: {
       type: String,
       default: "",
-      required: true,
     },
   },
   { timestamps: true }
