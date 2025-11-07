@@ -10,6 +10,7 @@ export const createFeatureRequest = async (req, res) => {
       title,
       description: description,
       userId,
+      statusMessage: "",
     });
     await featureRequest.save();
     res.status(200).json({ success: true, data: featureRequest });
