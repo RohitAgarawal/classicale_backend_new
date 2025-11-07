@@ -8,7 +8,7 @@ export const createFeatureRequest = async (req, res) => {
     const { title, description, userId } = req.body;
     const featureRequest = new FeatureRequest({
       title,
-      statusMessage: description,
+      description: description,
       userId,
     });
     await featureRequest.save();
@@ -90,7 +90,7 @@ export const updateFeatureRequest = async (req, res) => {
       req.params.id,
       {
         title: req.body.title,
-        statusMessage: req.body.description,
+        description: req.body.description,
       },
       { new: true }
     );
