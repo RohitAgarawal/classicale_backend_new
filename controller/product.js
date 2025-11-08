@@ -1023,11 +1023,12 @@ export const getProductsByUser = async (req, res) => {
     }
 
     const user = await UserModel.findById(userId);
+    const reqUserData = await UserModel.findById(reqUser._id);
     console.log(user);
 
     let userCategoryList = [];
-    const userReadCategoryList = user.read || [];
-    const userWriteCategoryList = user.write || [];
+    const userReadCategoryList = reqUserData.read || [];
+    const userWriteCategoryList = reqUserData.write || [];
 
     userCategoryList = [...userReadCategoryList, ...userWriteCategoryList];
 
