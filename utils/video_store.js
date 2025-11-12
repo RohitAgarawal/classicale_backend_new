@@ -14,7 +14,7 @@ export const saveBase64Video = (
   extension = "mp4"
 ) => {
   try {
-    // Convert base64 to buffer
+    // Convert base64 to buffer for video
     const buffer = Buffer.from(base64String, "base64");
 
     const filename = `${filenamePrefix}_${Date.now()}.${extension}`;
