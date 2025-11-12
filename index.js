@@ -21,6 +21,7 @@ import AppVersionRoute from "./routes/app_version.js";
 import FeedbackRouter from "./routes/feedback.js";
 import AboutUsRouter from "./routes/about_us.js";
 import { AboutUs } from "./model/about_us.js";
+import AppGuidevideoRouter from "./routes/appGuidevideo.js";
 
 const app = express();
 app.use(express.json({ limit: "10mb" })); // or even higher like '50mb'
@@ -149,6 +150,7 @@ app.use("/api/app-version", AppVersionRoute);
 app.use("/api/feedback", FeedbackRouter);
 app.use("/api/feature-request", FeedbackRouter);
 app.use("/api/about-us", AboutUsRouter);
+app.use("/api/app-guide-video", AppGuidevideoRouter);
 
 if (config.nodeEnv === "dev") {
   server.listen(PORT, () => {
