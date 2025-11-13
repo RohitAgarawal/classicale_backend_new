@@ -40,4 +40,16 @@ export const uploadVideo = async (req, res) => {
       .status(500)
       .json({ message: "Failed to upload video", error: error.message });
   }
-};
+}
+
+export const getAppGuideVideo = async (req, res) => {
+  try {
+    const videos = await AppGuidevideo.find().sort({ createdAt: -1 });
+    res.status(200).json({ data: videos,message:"App guide videos fetched successfully" });
+   } catch (error) {
+    console.error("Error uploading video:", error);
+    res
+      .status(500)
+      .json({ message: "Failed to upload video", error: error.message });
+  }
+}
