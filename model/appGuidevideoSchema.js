@@ -33,10 +33,6 @@ const appGuidevideoSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const AppGuidevideo = mongoose.model("AppGuidevideo", appGuidevideoSchema);
-
-export default AppGuidevideo;
-
 // Ensure only one video is visible at a time.
 // When a document is saved with visibility=true, set visibility=false for all other documents.
 appGuidevideoSchema.pre("save", async function (next) {
@@ -53,23 +49,34 @@ appGuidevideoSchema.pre("save", async function (next) {
   }
 });
 
-// For findOneAndUpdate (used by findByIdAndUpdate), check the update payload.
-appGuidevideoSchema.pre("findByIdAndUpdate", async function (next) {
-  try {
-    const update = this.getUpdate();
-    if (!update) return next();
+// For findOneAndUpdate / findByIdAndUpdate, check the update payload.
+// Use both hooks so updates done via query middleware are caught.
+appGuidevideoSchema.pre(
+  ["findOneAndUpdate", "findByIdAndUpdate"],
+  async function (next) {
+    try {
+      const update = this.getUpdate();
+      if (!update) return next();
 
-    // Check $set or direct visibility field
-    const visibility =
-      (update.$set && update.$set.visibility) ?? update.visibility;
-    if (visibility) {
-      // determine the id being updated
-      const query = this.getQuery();
-      const id = query && query._id ? query._id : null;
-      await this.model.updateMany({ _id: { $ne: id } }, { visibility: false });
+      // Check $set or direct visibility field
+      const visibility =
+        (update.$set && update.$set.visibility) ?? update.visibility;
+      if (visibility) {
+        // determine the id being updated
+        const query = this.getQuery();
+        const id = query && query._id ? query._id : null;
+        await this.model.updateMany(
+          { _id: { $ne: id } },
+          { visibility: false }
+        );
+      }
+      next();
+    } catch (err) {
+      next(err);
     }
-    next();
-  } catch (err) {
-    next(err);
   }
-});
+);
+
+const AppGuidevideo = mongoose.model("AppGuidevideo", appGuidevideoSchema);
+
+export default AppGuidevideo;
