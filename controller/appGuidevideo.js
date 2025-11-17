@@ -71,6 +71,7 @@ export const setVideoVisibility = async (req, res) => {
       { new: true }
     );
 
+
     if (!updated) return res.status(404).json({ message: "Video not found" });
 
     res
