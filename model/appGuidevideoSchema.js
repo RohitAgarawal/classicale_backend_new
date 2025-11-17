@@ -54,7 +54,7 @@ appGuidevideoSchema.pre("save", async function (next) {
 });
 
 // For findOneAndUpdate (used by findByIdAndUpdate), check the update payload.
-appGuidevideoSchema.pre("findOneAndUpdate", async function (next) {
+appGuidevideoSchema.pre("findByIdAndUpdate", async function (next) {
   try {
     const update = this.getUpdate();
     if (!update) return next();
