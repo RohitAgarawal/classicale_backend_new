@@ -48,3 +48,32 @@ export const saveBase64Video = (base64String, folderPath, filenamePrefix, extens
     throw error;
   }
 };
+
+// ✅ Function: Delete video file
+export const deleteVideoFile = (storedPath) => {
+  try {
+    if (!storedPath) return;
+
+    // Remove leading '/public/' to get the relative path inside the public folder
+    const relativePath = storedPath.replace(/^\/public\//, "");
+
+    const fullPath =
+      config.nodeEnv === "dev"
+        ? path.join(__dirname, "..", "public", relativePath)
+        : path.join(config.uploads.root, "public", relativePath);
+
+    if (fs.existsSync(fullPath)) {
+      fs.unlinkSync(fullPath);
+      log(`✅ Video deleted: ${fullPath}`);
+    } else {
+      log(`⚠️ Video file not found: ${fullPath}`);
+    }
+  } catch (error) {
+    log("❌ Error deleting video file:", error);
+    // We don't throw here to allow the DB record deletion to proceed even if file deletion fails
+    // or maybe we should? Usually better to log and continue or throw.
+    // Given the user request "delete video by id and also delete from storage", 
+    // if storage deletion fails, maybe we should still delete the DB record or warn.
+    // I'll log it but won't throw to ensure DB consistency is prioritized or at least handled in controller.
+  }
+};

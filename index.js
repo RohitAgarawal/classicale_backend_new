@@ -13,6 +13,7 @@ import AdminRouter from "./routes/admin.js";
 import Admin from "./model/admin.js";
 import SendOtpRouter from "./routes/sendOtp.js";
 import path from "path";
+import fs from "fs";
 import cors from "cors";
 import LocationRouter from "./routes/location.js";
 import { log } from "console";
@@ -131,6 +132,47 @@ async function createAdminIfNotExists() {
   }
 }
 
+// Video streaming route (must be before static middleware)
+app.get("/public/videos/app-guide/:name", (req, res) => {
+  const { name } = req.params;
+  const videoPath =
+    config.nodeEnv === "dev"
+      ? path.join(__dirname, "public", "videos", "app-guide", name)
+      : path.join(config.uploads.root, "public", "videos", "app-guide", name);
+
+  // Check if file exists
+  if (!fs.existsSync(videoPath)) {
+    return res.status(404).send("Video not found");
+  }
+
+  const stat = fs.statSync(videoPath);
+  const fileSize = stat.size;
+  const range = req.headers.range;
+
+  if (range) {
+    const parts = range.replace(/bytes=/, "").split("-");
+    const start = parseInt(parts[0], 10);
+    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+    const chunksize = end - start + 1;
+    const file = fs.createReadStream(videoPath, { start, end });
+    const head = {
+      "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+      "Accept-Ranges": "bytes",
+      "Content-Length": chunksize,
+      "Content-Type": "video/mp4",
+    };
+    res.writeHead(206, head);
+    file.pipe(res);
+  } else {
+    const head = {
+      "Content-Length": fileSize,
+      "Content-Type": "video/mp4",
+    };
+    res.writeHead(200, head);
+    fs.createReadStream(videoPath).pipe(res);
+  }
+});
+
 if (config.nodeEnv === "dev") {
   console.log("Serving static files from:", path.join(__dirname, "public"));
   app.use("/public", express.static(path.join(__dirname, "public")));
@@ -153,6 +195,9 @@ app.use("/api/feedback", FeedbackRouter);
 app.use("/api/feature-request", FeedbackRouter);
 app.use("/api/about-us", AboutUsRouter);
 app.use("/api/app-guide-video", AppGuidevideoRouter);
+
+
+
 
 if (config.nodeEnv === "dev") {
   server.listen(PORT, () => {
