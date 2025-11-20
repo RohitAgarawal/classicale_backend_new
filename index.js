@@ -132,7 +132,7 @@ async function createAdminIfNotExists() {
   }
 }
 
-// Video streaming route (must be before static middleware)
+// Video streaming route (must be before static middleware) f
 app.get("/public/videos/app-guide/:name", (req, res) => {
   const { name } = req.params;
   const videoPath =
