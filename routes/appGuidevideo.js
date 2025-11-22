@@ -14,6 +14,6 @@ router.post("/upload", uploadVideo);
 router.get("/get-app-guide-video", getAppGuideVideo);
 router.get("/get-visible-video", getVisibleVideo);
 router.patch("/visibility/:id", setVideoVisibility);
-router.delete("/delete/:id", deleteVideo);
+router.delete("", deleteVideo);
 
 export default router;

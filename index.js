@@ -149,6 +149,13 @@ app.get("/public/videos/app-guide/:name", (req, res) => {
   const fileSize = stat.size;
   const range = req.headers.range;
 
+  const ext = path.extname(videoPath).toLowerCase();
+  let contentType = "video/mp4";
+  if (ext === ".mov") contentType = "video/quicktime";
+  else if (ext === ".webm") contentType = "video/webm";
+  else if (ext === ".mkv") contentType = "video/x-matroska";
+  else if (ext === ".avi") contentType = "video/x-msvideo";
+
   if (range) {
     const parts = range.replace(/bytes=/, "").split("-");
     const start = parseInt(parts[0], 10);
@@ -159,14 +166,15 @@ app.get("/public/videos/app-guide/:name", (req, res) => {
       "Content-Range": `bytes ${start}-${end}/${fileSize}`,
       "Accept-Ranges": "bytes",
       "Content-Length": chunksize,
-      "Content-Type": "video/mp4",
+      "Content-Type": contentType,
     };
     res.writeHead(206, head);
     file.pipe(res);
   } else {
     const head = {
       "Content-Length": fileSize,
-      "Content-Type": "video/mp4",
+      "Content-Type": contentType,
+      "Accept-Ranges": "bytes", // Important for Android to know it can seek
     };
     res.writeHead(200, head);
     fs.createReadStream(videoPath).pipe(res);
