@@ -1,4 +1,5 @@
 import { UserModel } from "../model/user.js";
+import AdminModel from "../model/admin.js";
 import mongoose, { Model } from "mongoose";
 import nodemailer from "nodemailer";
 import { SubProductTypeModel } from "../model/sub_product_type.js";
@@ -1016,22 +1017,48 @@ export const getProductsByUser = async (req, res) => {
   try {
     const { userId } = req.query;
     const reqUser = req.user;
-    console.log(reqUser);
+    console.log({reqUser});
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ message: "Invalid userId" });
     }
-    /// 
+
+    // ✅ Check if reqUser exists
+    if (!reqUser || !reqUser._id) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
 
     const user = await UserModel.findById(userId);
-    const reqUserData = await UserModel.findById(reqUser._id);
-    console.log(user);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
     let userCategoryList = [];
-    const userReadCategoryList = reqUserData.read || [];
-    const userWriteCategoryList = reqUserData.write || [];
-
-    userCategoryList = [...userReadCategoryList, ...userWriteCategoryList];
+    
+    // ✅ Check if the requesting user is an admin or a regular user
+    if (reqUser.role === "admin") {
+      // 🔑 Verify admin exists in database before granting full access
+      const adminUser = await AdminModel.findById(reqUser._id);
+      
+      if (!adminUser || adminUser.role !== "admin") {
+        return res.status(403).json({ message: "Access denied. Invalid admin credentials." });
+      }
+      
+      console.log("✅ Verified admin requesting user products - full access granted");
+      userCategoryList = ["A", "B", "C", "D", "E", "α", "β"]; // All categories
+    } else {
+      // 👤 Regular user - check their read/write permissions
+      const reqUserData = await UserModel.findById(reqUser._id.toString());
+      console.log({reqUserData});
+      
+      if (!reqUserData) {
+        return res.status(404).json({ message: "Requesting user not found" });
+      }
+      
+      const userReadCategoryList = reqUserData.read || [];
+      const userWriteCategoryList = reqUserData.write || [];
+      userCategoryList = [...userReadCategoryList, ...userWriteCategoryList];
+    }
 
     let allUserProducts = [];
     console.log(userCategoryList);
