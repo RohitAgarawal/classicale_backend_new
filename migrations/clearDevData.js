@@ -1,6 +1,12 @@
 import config from "../utils/config.js";
 import mongoose from "mongoose";
 import readline from "readline";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Import Models
 import { UserModel } from "../model/user.js";
@@ -106,6 +112,42 @@ async function clearData() {
       console.log(`✅ Reset ${result.modifiedCount} access pins`);
     } catch (err) {
       console.error("❌ Error resetting access pins:", err.message);
+    }
+
+    // Clear Public Images
+    console.log("\nClearing Public Images...");
+    const publicDirs = [
+      "productImages",
+      "profileImages",
+      "ReportProductImages",
+      "chat",
+      "aadhaarCardImage",
+      "aadhaarCardImage1",
+      "aadhaarCardImage2",
+      "aadharcardImages",
+    ];
+
+    const publicPath = path.join(__dirname, "../public");
+
+    for (const dir of publicDirs) {
+      const dirPath = path.join(publicPath, dir);
+      if (fs.existsSync(dirPath)) {
+        try {
+          const files = fs.readdirSync(dirPath);
+          let deletedCount = 0;
+          for (const file of files) {
+            if (file !== ".gitkeep" && file !== ".DS_Store") {
+              fs.unlinkSync(path.join(dirPath, file));
+              deletedCount++;
+            }
+          }
+          if (deletedCount > 0) {
+            console.log(`✅ Cleared ${deletedCount} files from public/${dir}`);
+          }
+        } catch (err) {
+          console.error(`❌ Error clearing public/${dir}:`, err.message);
+        }
+      }
     }
 
     console.log("\n✅ Data clearing process completed.");

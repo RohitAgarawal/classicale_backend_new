@@ -12,7 +12,7 @@ export const authenticateUser = async (req, res, next) => {
 
     if (!token || !token.startsWith("Bearer ")) {
       return res
-        .status(400)
+        .status(401)
         .json({ error: "Invalid or missing Authorization token." });
     }
 
