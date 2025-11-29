@@ -44,7 +44,7 @@ export const authenticateUser = async (req, res, next) => {
 
     // ✅ Token me user ka ID check karein
     if (!verifiedToken.id) {
-      console.error("❌ Token does not contain user ID.");
+      console.error("Token does not contain user ID.");
       return res.status(401).json({ error: "Invalid token data." });
     }
 
