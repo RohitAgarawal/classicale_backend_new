@@ -7,7 +7,12 @@ const ReportProductSchema = new mongoose.Schema({
     image: { type: String },
     modelName: { type: String },
     isActive: {type: Boolean, default: true},
-
+    status: {
+        type: String,
+        enum: ["pending", "decline", "resolve"],
+        default: "pending",
+    },
+    note: { type: String },
 },
     {
         timestamps: true,
@@ -15,5 +20,3 @@ const ReportProductSchema = new mongoose.Schema({
 )
 
 export const ReportProductModel = mongoose.model("report_product", ReportProductSchema);
-
-//export const UserModel = mongoose.model("user", UserSchema);

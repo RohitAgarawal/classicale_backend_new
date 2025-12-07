@@ -1574,3 +1574,41 @@ export const getAllRatings = async (req, res) => {
     res.status(500).json({ status: 500, message: "Server error" });
   }
 };
+
+export const updateReportStatus = async (req, res) => {
+  try {
+    const { reportId, status, note } = req.body;
+
+    if (!reportId || !status) {
+      return res.status(400).json({ message: "Report ID and status are required" });
+    }
+
+    const validStatuses = ["pending", "decline", "resolve"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid status value" });
+    }
+
+    const report = await ReportProductModel.findById(reportId);
+    if (!report) {
+      return res.status(404).json({ message: "Report not found" });
+    }
+
+    report.status = status;
+    if (note) {
+      report.note = note;
+    }
+
+    await report.save();
+
+    return res.status(200).json({
+      message: "Report status updated successfully",
+      data: report,
+    });
+  } catch (error) {
+    console.error("Error updating report status:", error);
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
