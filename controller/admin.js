@@ -1612,3 +1612,58 @@ export const updateReportStatus = async (req, res) => {
     });
   }
 };
+
+// Get reports for export
+export const getReportsForExport = async (req, res) => {
+  try {
+    const { status } = req.query;
+    console.log("Exporting reports with status:", status);
+
+    let query = {};
+    if (status && status !== 'All') {
+      // Case-insensitive match for status
+      query.status = { $regex: new RegExp(`^${status}$`, 'i') };
+    }
+
+    const reportedProducts = await ReportProductModel.find(query)
+      .populate("userId")
+      .populate("productId");
+
+    const validReports = [];
+
+    for (const report of reportedProducts) {
+      const { modelName, productId } = report;
+
+      const Model = productModels[modelName];
+      if (!Model || !productId?._id) continue;
+
+      const productExists = await Model.findById(productId._id)
+        .populate("productType")
+        .populate({ path: "userId" })
+        .populate({
+          path: "subProductType",
+          select: "-modelName -productType",
+        });
+      if (productExists) {
+        validReports.push({
+          ...report._doc,
+          productId: productExists,
+        });
+      }
+    }
+
+    // console.log(`Found ${validReports.length} valid reports for export`);
+
+    return res.status(200).json({
+      message: "Reports for export fetched successfully",
+      count: validReports.length,
+      data: validReports,
+    });
+  } catch (error) {
+    console.error("Error fetching reports for export:", error);
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};

@@ -23,6 +23,7 @@ import {
   getUserByID,
   getAllRatings,
   updateReportStatus,
+  getReportsForExport,
 } from "../controller/admin.js";
 
 import multer from "multer";
@@ -101,6 +102,9 @@ router.get("/get-all-ratings", authenticateAdmin, getAllRatings);
 
 //router.get("/product_active_inactive", productActiveOrInactive);
 
+
 router.put("/update-report-status", authenticateAdmin, updateReportStatus);
+
+router.get("/export-reports", authenticateAdmin, getReportsForExport);
 
 export default router;
