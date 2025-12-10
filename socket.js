@@ -7,17 +7,20 @@ import verifyuser, {
 import { updateMessageStatus } from "./controller/chat.js";
 
 const onlineUsers = new Map(); // userId → socket.id
-const joinConversation = new Map(); // conversationId → socket.id
 
 const socketInit = (io) => {
   io.on("connection", async (socket) => {
     const userId = socket.handshake.query.userId;
-    // verify user
-    await verifyuser(userId, socket);
-    // Check if userId is already connected
-    removeUserFromSocket(userId);
-    // Add user to onlineUsers map
-    addUserToSocket(userId.toString(), socket.id);
+    if (userId) {
+       // verify user
+       await verifyuser(userId, socket);
+       // Check if userId is already connected
+       removeUserFromSocket(userId);
+       // Add user to onlineUsers map
+       addUserToSocket(userId.toString(), socket.id);
+    } else {
+       console.log("Connection without userId:", socket.id);
+    }
     // Listen for user registration
     socket.on("joinRoom", async (conversationId) => {
       try {
@@ -29,8 +32,7 @@ const socketInit = (io) => {
           return;
         }
         await socket.join(conversationId);
-        joinConversation.set(conversationId, socket.id);
-        console.log("Registering user:", conversationId);
+        console.log("Registering user to room:", conversationId);
         socket.emit("joinRoom", {
           message: "User successfully registered to Room",
           conversationId,
@@ -55,7 +57,7 @@ const socketInit = (io) => {
           return;
         }
 
-        joinConversation.delete(conversationId);
+        socket.leave(conversationId); // Native socket leave
         console.log("Unregistering from room:", conversationId);
         socket.emit("exitRoomSuccess", {
           message: "User successfully exited from Room",
@@ -72,6 +74,15 @@ const socketInit = (io) => {
     socket.on("messageDelivered", async (data) => {
       console.log("Message delivered event:", data._id);
       await updateMessageStatus(data._id);
+    });
+
+    socket.on("joinAdminSupport", async () => {
+      try {
+        await socket.join("admin-support");
+        console.log("Admin joined support room");
+      } catch (error) {
+        console.error("Error joining admin support:", error);
+      }
     });
 
     socket.on("disconnect", () => {
@@ -91,4 +102,4 @@ const socketInit = (io) => {
 };
 
 export default socketInit;
-export { onlineUsers, joinConversation };
+export { onlineUsers };

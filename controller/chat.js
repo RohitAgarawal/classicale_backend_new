@@ -13,7 +13,7 @@ import { PropertyModel } from "../model/property.js";
 import { ServicesModel } from "../model/services.js";
 import { SmartPhoneModel } from "../model/smart_phone.js";
 import { io } from "../index.js";
-import { onlineUsers, joinConversation } from "../socket.js";
+import { onlineUsers } from "../socket.js";
 import { saveBase64Image } from "../utils/image_store.js";
 import mongoose from "mongoose";
 const productModels = {
@@ -73,8 +73,8 @@ export const createConversation = async (req, res) => {
     // Check if a conversation already exists
     let conversation = await ConversationModel.findOne({
       participants: { $all: [userId, addProductUserId] },
-      product: productId,
-    });
+      // product: productId, // Removed to allow single conversation per user pair
+    }).sort({ updatedAt: -1 });
 
     // If a conversation exists, return it
     if (conversation) {
@@ -204,10 +204,6 @@ export const sendMessage = async (req, res) => {
 
         console.log("Checking socket connections:");
         console.log("All online users:", Array.from(onlineUsers.entries()));
-        console.log(
-          "All active conversations:",
-          Array.from(joinConversation.entries())
-        );
 
         // Get socket IDs
         const recipientSocketId = onlineUsers.get(recipientIdStr);
@@ -268,14 +264,116 @@ export const sendMessage = async (req, res) => {
 };
 
 export const fetchConversationId = async (req, res) => {
-  const { userId, productId } = req.body;
+  const { userId, productId } = req.body; // productId maps to the peer user logic if needed, but here we just need participants.
+  // Ideally, frontend sends `productUserId` or we derive it.
+  // BUT: existing logic finds conversation based on participants and product.
+  // We need to know who the OTHER participant is to find the conversation.
+  // The current frontend sends `userId` and `productId`.
+  // We need to find the OWNER of the product to know the other participant.
 
   try {
-    const conversation = await ConversationModel.findOne({
-      participants: { $all: [userId] },
-      product: productId,
-      deletedBy: { $ne: userId }, // <-- NOT deleted by this user
-    });
+    // We first need to find the product owner to know who we are chating with
+    // However, the original code assumed `participants: { $all: [userId] }` was enough combined with `product: productId`.
+    // Wait, the original code was:
+    // participants: { $all: [userId] },
+    // product: productId,
+    //
+    // If we remove `product: productId`, we might find ANY conversation involving `userId`.
+    // That's wrong. We need to find the conversation with the SPECIFIC PEER.
+    // The `fetchConversationId` seems to only take `userId` and `productId`.
+    // It does NOT take the peer ID explicitly in the body?
+    // Let's re-read the original `fetchConversationId` carefully.
+    // Original:
+    // const conversation = await ConversationModel.findOne({
+    //   participants: { $all: [userId] },
+    //   product: productId,
+    //   deletedBy: { $ne: userId },
+    // });
+    //
+    // Use Case: "Do I have a conversation about THIS product?"
+    // Now Use Case: "Do I have a conversation with the OWNER of this product?"
+    //
+    // So we need to look up the product owner first.
+
+    // Let's rely on `createConversation` logic which does the heavy lifting of finding the owner?
+    // Or we can duplicate the lookup logic here.
+    // But `fetchConversationId` seems to be used to check "does it exist?".
+    // If I simply remove `product`, it finds `findOne({participants: userId})` which is just ANY conversation the user has.
+    // That is a BUG if I blindly remove `product`.
+
+    // FIX: We need to find the product owner first to identifying the participants.
+
+    // 1. Find Product to get Owner
+    // We don't know the Model Type here easily? `createConversation` had `productTypeId`.
+    // The request body here ONLY has `userId` and `productId`.
+    // This makes it hard to know which Collection to query for the product owner.
+
+    // Let's attempt to find the conversation by product FIRST (legacy way)
+    // If found, great.
+    // If NOT found, we want to find if there is a conversation with that user.
+    // But we don't know the user!
+
+    // Wait, if `fetchConversationId` is called, it might strictly expect a conversation about that product?
+    // If I change the logic to "User to User", `fetchConversationId` returning a conversation ID associated with a DIFFERENT product
+    // is exactly what we want.
+
+    // ISSUE: We cannot easily identify the 'other user' without querying the product.
+    // And we can't query the product without knowing the `productType` (Schema).
+    // The current `fetchConversationId` impl relies on `product: productId` in the conversation document itself.
+
+    // ALTERNATIVE:
+    // If the frontend calls `createConversation` instead of `fetchConversationId` when entering a chat, it will handle the finding/creation.
+    // Lets look at frontend `setUserId` in `ChatDetailsScreen`.
+    // It calls `chatProvider.conversationList(body)`.
+    // Let's check `conversationList` in `chat_provider.dart`. (Not visible, but likely calls an endpoint).
+    // The endpoint used is likely `fetchConversationId` or `createConversation`.
+
+    // If I look at `chat.js`, `fetchConversationId` implementation was weak.
+    // It only checks `participants: { $all: [userId] }` and `product: productId`.
+    // This implies "Conversation involving ME about PRODUCT X".
+    // Since `product` is unique in the old model, this identified the unique conversation.
+    //
+    // In the NEW model, a conversation might be about Product Y, but involves the same users.
+    // So searching by `product: productId` will fail if the existing conversation is stamped with Product Y.
+    // But searching ONLY by `userId` will return some random conversation with ANYONE.
+    //
+    // To support `fetchConversationId` correctly for the new model, we MUST know the peer ID.
+    // But the API signature is `req.body: { userId, productId }`.
+    //
+    // Does the frontend send `productTypeId`?
+    // In `ChatDetailsScreen` (frontend):
+    // Map<String, dynamic> body = {
+    //   "userId": userId,
+    //   "productId": productId,
+    //   "productUserId": productUserId,  <-- LOOK! Frontend sends `productUserId`!
+    //   "productTypeId": productTypeId,
+    // };
+    //
+    // Ah, the frontend sends `productUserId`!
+    // But the backend `fetchConversationId` (lines 270-271) destructures ONLY: `const { userId, productId } = req.body;`.
+    //
+    // I should update the backend to use `productUserId` if available!
+    // If the frontend sends `productUserId`, we can find the conversation between `userId` and `productUserId`.
+
+    const { userId, productUserId } = req.body;
+
+    let query = {};
+    if (productUserId) {
+       query = {
+          participants: { $all: [userId, productUserId] },
+          deletedBy: { $ne: userId }
+       };
+    } else {
+       // Fallback for legacy calls without productUserId?
+       // If we don't have productUserId, we can't safely switch to user-user mode without looking up the product.
+       // But we can't look up product without productType.
+       // Keep original behavior as fallback or error?
+       // The user request implies we MUST fix this.
+       // Assuming frontend sends `productUserId` based on my read of `ChatDetailsScreen`.
+       return res.status(400).json({ message: "productUserId is required for fetching conversation" });
+    }
+
+    const conversation = await ConversationModel.findOne(query).sort({ updatedAt: -1 });
 
     if (!conversation) {
       return res.status(201).json({ message: "Conversation not found" });
@@ -614,13 +712,17 @@ export const sendImageMessage = async (req, res) => {
     }
     // Identify recipient (the other participant)
     const conversation = await ConversationModel.findById(chatId);
+    if (!conversation) return res.status(404).json({ message: "Chat not found" });
+
     const recipientId = conversation.participants.find(
       (id) => id.toString() !== senderId
     );
     console.log("recipientId", recipientId);
+    
+    // Notify about new message (metadata refresh)
     const onlineUserSocketId = onlineUsers.get(recipientId.toString());
     const onlineSenderSocketId = onlineUsers.get(senderId.toString());
-    const recipientSocketId = joinConversation.get(recipientId.toString());
+    
     if (onlineUserSocketId) {
       io.to(onlineUserSocketId).emit("fetchAPI", {
         message: "fetch message",
@@ -631,12 +733,10 @@ export const sendImageMessage = async (req, res) => {
         message: "fetch message",
       });
     }
-    if (recipientSocketId) {
-      console.log("recipientSocketId", recipientSocketId);
-      io.to(recipientSocketId).emit("message", newMessage);
-    }
-    // Emit the message to the socket
-    // socket.emit("message", newMessage);
+
+    // Broadcast message to the conversation room (both participants should be joined)
+    io.to(chatId.toString()).emit("message", newMessage);
+
     res.status(200).json({
       message: "Image message sent successfully",
       status: 200,

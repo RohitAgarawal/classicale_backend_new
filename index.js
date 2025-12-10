@@ -23,6 +23,7 @@ import FeedbackRouter from "./routes/feedback.js";
 import AboutUsRouter from "./routes/about_us.js";
 import { AboutUs } from "./model/about_us.js";
 import AppGuidevideoRouter from "./routes/appGuidevideo.js";
+import SupportChatRouter from "./routes/support_chat.js";
 
 
 const app = express();
@@ -204,6 +205,7 @@ app.use("/api/feedback", FeedbackRouter);
 app.use("/api/feature-request", FeedbackRouter);
 app.use("/api/about-us", AboutUsRouter);
 app.use("/api/app-guide-video", AppGuidevideoRouter);
+app.use("/api/support", SupportChatRouter);
 
 
 
