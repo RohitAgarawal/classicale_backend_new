@@ -54,7 +54,7 @@ await mongoose
     ]);
   })
   .catch((error) => console.error("Error connecting to MongoDB:", error));
-
+//
 export async function createDefaultAboutUsIfNotExists() {
   try {
     const aboutUsExists = await AboutUs.findOne();
