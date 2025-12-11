@@ -216,10 +216,21 @@ export const sendMessage = async (req, res) => {
         console.log(`Sender socket ID (${senderIdStr}):`, senderSocketId);
 
         // Emit to conversation room first
+        console.log(`📤 Emitting message to room: ${conversationIdStr}`);
+        
+        // Get all sockets in the room to verify who will receive the message
+        const socketsInRoom = await io.in(conversationIdStr).fetchSockets();
+        console.log(`👥 Sockets in room ${conversationIdStr}:`, socketsInRoom.length);
+        socketsInRoom.forEach(socket => {
+          console.log(`  - Socket ID: ${socket.id}`);
+        });
+        
         io.to(conversationIdStr).emit("message", {
           type: "new_message",
           data: newMessage,
         });
+        
+        console.log(`✅ Message emitted to room ${conversationIdStr}`);
 
         // Send notifications to individual sockets
         if (recipientSocketId) {
@@ -234,6 +245,21 @@ export const sendMessage = async (req, res) => {
             type: "message_sent",
             data: newMessage,
           });
+        }
+
+        // Notify both users to refresh their chat lists
+        console.log(`📤 Emitting fetchAPI to update chat lists`);
+        if (recipientSocketId) {
+          io.to(recipientSocketId).emit("fetchAPI", {
+            message: "fetch conversations",
+          });
+          console.log(`📤 fetchAPI sent to recipient: ${recipientIdStr}`);
+        }
+        if (senderSocketId) {
+          io.to(senderSocketId).emit("fetchAPI", {
+            message: "fetch conversations",
+          });
+          console.log(`📤 fetchAPI sent to sender: ${senderIdStr}`);
         }
 
         return res.status(200).json({
