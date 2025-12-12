@@ -403,6 +403,8 @@ export const fetchConversationId = async (req, res) => {
     // I should update the backend to use `productUserId` if available!
     // If the frontend sends `productUserId`, we can find the conversation between `userId` and `productUserId`.
 
+    
+
     const { userId, productUserId, productId } = req.body;
 
     let query = {};
