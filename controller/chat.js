@@ -70,24 +70,27 @@ export const createConversation = async (req, res) => {
     if (userId == addProductUserId) {
       throw new Error("Cannot create conversation with yourself");
     }
-    // Check if a conversation already exists
+    // Check if a conversation already exists for this product
     let conversation = await ConversationModel.findOne({
       participants: { $all: [userId, addProductUserId] },
-      // product: productId, // Removed to allow single conversation per user pair
+      product: productId, // Re-enabled to keep conversations separate per product
     }).sort({ updatedAt: -1 });
 
-    // If a conversation exists, return it
+    // If a conversation exists for this product, return it
     if (conversation) {
+      console.log(`✅ Found existing conversation ${conversation._id} for product ${productId}`);
       return conversation;
     }
-    if (!conversation) {
-      conversation = await ConversationModel.create({
-        participants: [userId, addProductUserId],
-        product: productId,
-        productTypeId: productTypeId,
-      });
-      return conversation;
-    }
+    
+    // No conversation exists for this product - create a new one
+    console.log(`📝 Creating new conversation for product ${productId}`);
+    conversation = await ConversationModel.create({
+      participants: [userId, addProductUserId],
+      product: productId,
+      productTypeId: productTypeId,
+    });
+    console.log(`✅ Created new conversation ${conversation._id}`);
+    return conversation;
   } catch (error) {
     console.log("Error creating conversation:", error);
     throw error;
@@ -146,13 +149,17 @@ export const sendMessage = async (req, res) => {
     let conversation;
 
     if (!conversationId) {
+      // No conversation ID provided - create or find one
       conversation = await createConversation({
         body: { userId: senderId, productId, productTypeId },
       });
       conversationId = conversation._id;
     } else {
+      // Conversation ID provided - verify it exists and matches the product
       conversation = await ConversationModel.findById(conversationId);
+      
       if (!conversation) {
+        // Conversation doesn't exist - create new one
         conversation = await createConversation({
           body: {
             userId: senderId,
@@ -161,7 +168,20 @@ export const sendMessage = async (req, res) => {
           },
         });
         conversationId = conversation._id;
+      } else if (conversation.product.toString() !== productId.toString()) {
+        // Conversation exists but for different product - find or create correct one
+        console.log(`⚠️ Conversation ${conversationId} is for product ${conversation.product}, but message is for product ${productId}`);
+        conversation = await createConversation({
+          body: {
+            userId: senderId,
+            productId,
+            productTypeId,
+          },
+        });
+        conversationId = conversation._id;
+        console.log(`✅ Using correct conversation ${conversationId} for product ${productId}`);
       }
+      // else: conversation exists and matches product - use it as is
     }
     if (type === "text") {
       try {
@@ -252,12 +272,14 @@ export const sendMessage = async (req, res) => {
         if (recipientSocketId) {
           io.to(recipientSocketId).emit("fetchAPI", {
             message: "fetch conversations",
+            conversationId: conversationIdStr,
           });
           console.log(`📤 fetchAPI sent to recipient: ${recipientIdStr}`);
         }
         if (senderSocketId) {
           io.to(senderSocketId).emit("fetchAPI", {
             message: "fetch conversations",
+            conversationId: conversationIdStr,
           });
           console.log(`📤 fetchAPI sent to sender: ${senderIdStr}`);
         }
@@ -381,30 +403,36 @@ export const fetchConversationId = async (req, res) => {
     // I should update the backend to use `productUserId` if available!
     // If the frontend sends `productUserId`, we can find the conversation between `userId` and `productUserId`.
 
-    const { userId, productUserId } = req.body;
+    const { userId, productUserId, productId } = req.body;
 
     let query = {};
-    if (productUserId) {
+    if (productUserId && productId) {
+       // Look for conversation with specific participants AND product
+       query = {
+          participants: { $all: [userId, productUserId] },
+          product: productId, // ✅ Must match product
+          deletedBy: { $ne: userId }
+       };
+       console.log(`🔍 Looking for conversation: users [${userId}, ${productUserId}], product: ${productId}`);
+    } else if (productUserId) {
+       // Fallback: only participants (backward compatibility)
        query = {
           participants: { $all: [userId, productUserId] },
           deletedBy: { $ne: userId }
        };
+       console.log(`⚠️ Looking for conversation without product filter (missing productId)`);
     } else {
-       // Fallback for legacy calls without productUserId?
-       // If we don't have productUserId, we can't safely switch to user-user mode without looking up the product.
-       // But we can't look up product without productType.
-       // Keep original behavior as fallback or error?
-       // The user request implies we MUST fix this.
-       // Assuming frontend sends `productUserId` based on my read of `ChatDetailsScreen`.
-       return res.status(400).json({ message: "productUserId is required for fetching conversation" });
+       return res.status(400).json({ message: "productUserId and productId are required for fetching conversation" });
     }
 
     const conversation = await ConversationModel.findOne(query).sort({ updatedAt: -1 });
 
     if (!conversation) {
+      console.log(`❌ No conversation found`);
       return res.status(201).json({ message: "Conversation not found" });
     }
 
+    console.log(`✅ Found conversation ${conversation._id} for product ${conversation.product}`);
     res.status(200).json({
       message: "Conversation found",
       status: 200,
@@ -706,6 +734,20 @@ export const sendImageMessage = async (req, res) => {
       });
     }
 
+    // Validate that the conversation exists and matches the product
+    const conversation = await ConversationModel.findById(chatId);
+    if (!conversation) {
+      return res.status(404).json({ message: "Conversation not found" });
+    }
+    
+    // Verify the conversation is for the correct product
+    if (conversation.product.toString() !== productId.toString()) {
+      return res.status(400).json({ 
+        message: "Product mismatch",
+        error: `Conversation ${chatId} is for product ${conversation.product}, but image is for product ${productId}`
+      });
+    }
+
     const imageURL = saveBase64Image(
       content,
       `chat/images/${senderId}`,
@@ -734,12 +776,10 @@ export const sendImageMessage = async (req, res) => {
     // Populate senderId
     await newMessage.populate("senderId");
     if (!newMessage) {
-      return res.status(404).json({ message: "Conversation not found" });
+      return res.status(404).json({ message: "Message creation failed" });
     }
-    // Identify recipient (the other participant)
-    const conversation = await ConversationModel.findById(chatId);
-    if (!conversation) return res.status(404).json({ message: "Chat not found" });
-
+    
+    // Identify recipient (the other participant) - conversation already fetched above
     const recipientId = conversation.participants.find(
       (id) => id.toString() !== senderId
     );
@@ -752,11 +792,13 @@ export const sendImageMessage = async (req, res) => {
     if (onlineUserSocketId) {
       io.to(onlineUserSocketId).emit("fetchAPI", {
         message: "fetch message",
+        conversationId: chatId.toString(),
       });
     }
     if (onlineSenderSocketId) {
       io.to(onlineSenderSocketId).emit("fetchAPI", {
         message: "fetch message",
+        conversationId: chatId.toString(),
       });
     }
 
