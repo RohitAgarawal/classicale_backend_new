@@ -14,10 +14,40 @@ const socketInit = (io) => {
     if (userId) {
        // verify user
        await verifyuser(userId, socket);
-       // Check if userId is already connected
-       removeUserFromSocket(userId);
-       // Add user to onlineUsers map
-       addUserToSocket(userId.toString(), socket.id);
+
+       // If a socket already exists for this user, disconnect it to prevent duplicates
+       const existingSocketId = onlineUsers.get(userId.toString());
+       // Multi-device friendly: A user can have multiple active sockets (e.g., from different devices).
+       // We store all active socket IDs for a user.
+       let userSockets = onlineUsers.get(userId.toString());
+       if (!userSockets) {
+         userSockets = new Set();
+         onlineUsers.set(userId.toString(), userSockets);
+       }
+       userSockets.add(socket.id);
+       console.log(`✅ User ${userId} connected with socket ${socket.id}. Total sockets for user: ${userSockets.size}`);
+       
+       // Join user to their personal room for reliable message delivery
+       const userRoom = `user-${userId}`;
+       await socket.join(userRoom);
+       console.log(`✅ User ${userId} joined personal room: ${userRoom}`);
+
+       // Handle disconnection
+       socket.on("disconnect", () => {
+         const disconnectedUserId = userId.toString();
+         const socketsForUser = onlineUsers.get(disconnectedUserId);
+         if (socketsForUser) {
+           socketsForUser.delete(socket.id);
+           if (socketsForUser.size === 0) {
+             onlineUsers.delete(disconnectedUserId);
+             console.log(`❌ User ${disconnectedUserId} has no active sockets left.`);
+           } else {
+             console.log(`🔌 Socket ${socket.id} disconnected for user ${disconnectedUserId}. Remaining sockets: ${socketsForUser.size}`);
+           }
+         }
+         console.log(`Socket disconnected: ${socket.id}`);
+       });
+
     } else {
        console.log("Connection without userId:", socket.id);
     }
@@ -71,30 +101,19 @@ const socketInit = (io) => {
       }
     });
 
-    socket.on("messageDelivered", async (data) => {
-      console.log("Message delivered event:", data._id);
-      await updateMessageStatus(data._id);
-    });
-
+    // Admin support: allow admin clients to join a dedicated room
     socket.on("joinAdminSupport", async () => {
       try {
         await socket.join("admin-support");
-        console.log("Admin joined support room");
+        console.log("✅ Admin joined support room: admin-support");
       } catch (error) {
         console.error("Error joining admin support:", error);
       }
     });
 
-    socket.on("disconnect", () => {
-      // Remove disconnected user from onlineUsers list
-      for (const [id, sId] of onlineUsers.entries()) {
-        if (sId === socket.id) {
-          onlineUsers.delete(id);
-          console.log(`User ${id} disconnected`);
-          break;
-        }
-      }
-    });
+
+
+
     socket.on("error", (error) => {
       console.log(`Socket error on ${socket.id}:`, error);
     });

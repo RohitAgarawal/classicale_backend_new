@@ -33,6 +33,11 @@ export function removeUserFromSocket(userId) {
 
 // add user to socket
 export function addUserToSocket(userId, socketId) {
-  onlineUsers.set(userId, socketId);
-  console.log(`User ${userId} connected/reconnected with socket ${socketId}`);
+  let sockets = onlineUsers.get(userId);
+  if (!sockets) {
+    sockets = new Set();
+    onlineUsers.set(userId, sockets);
+  }
+  sockets.add(socketId);
+  console.log(`User ${userId} connected with socket ${socketId}. Total sockets: ${sockets.size}`);
 }

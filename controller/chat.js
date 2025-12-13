@@ -269,20 +269,23 @@ export const sendMessage = async (req, res) => {
 
         // Notify both users to refresh their chat lists
         console.log(`📤 Emitting fetchAPI to update chat lists`);
-        if (recipientSocketId) {
-          io.to(recipientSocketId).emit("fetchAPI", {
-            message: "fetch conversations",
-            conversationId: conversationIdStr,
-          });
-          console.log(`📤 fetchAPI sent to recipient: ${recipientIdStr}`);
-        }
-        if (senderSocketId) {
-          io.to(senderSocketId).emit("fetchAPI", {
-            message: "fetch conversations",
-            conversationId: conversationIdStr,
-          });
-          console.log(`📤 fetchAPI sent to sender: ${senderIdStr}`);
-        }
+        
+        // Emit to user rooms instead of individual socket IDs for reliability
+        const recipientRoom = `user-${recipientIdStr}`;
+        const senderRoom = `user-${senderIdStr}`;
+        
+        io.to(recipientRoom).emit("fetchAPI", {
+          message: "fetch conversations",
+          conversationId: conversationIdStr,
+        });
+        console.log(`📤 fetchAPI sent to recipient room: ${recipientRoom}`);
+        
+        io.to(senderRoom).emit("fetchAPI", {
+          message: "fetch conversations",
+          conversationId: conversationIdStr,
+        });
+        console.log(`📤 fetchAPI sent to sender room: ${senderRoom}`);
+
 ///
         return res.status(200).json({
           message: "Message sent successfully",
@@ -787,22 +790,25 @@ export const sendImageMessage = async (req, res) => {
     );
     console.log("recipientId", recipientId);
     
-    // Notify about new message (metadata refresh)
-    const onlineUserSocketId = onlineUsers.get(recipientId.toString());
-    const onlineSenderSocketId = onlineUsers.get(senderId.toString());
     
-    if (onlineUserSocketId) {
-      io.to(onlineUserSocketId).emit("fetchAPI", {
-        message: "fetch message",
-        conversationId: chatId.toString(),
-      });
-    }
-    if (onlineSenderSocketId) {
-      io.to(onlineSenderSocketId).emit("fetchAPI", {
-        message: "fetch message",
-        conversationId: chatId.toString(),
-      });
-    }
+    // Notify about new message (metadata refresh)
+    const recipientIdStr = recipientId.toString();
+    const senderIdStr = senderId.toString();
+    const recipientRoom = `user-${recipientIdStr}`;
+    const senderRoom = `user-${senderIdStr}`;
+    
+    io.to(recipientRoom).emit("fetchAPI", {
+      message: "fetch message",
+      conversationId: chatId.toString(),
+    });
+    console.log(`📤 fetchAPI sent to recipient room: ${recipientRoom}`);
+    
+    io.to(senderRoom).emit("fetchAPI", {
+      message: "fetch message",
+      conversationId: chatId.toString(),
+    });
+    console.log(`📤 fetchAPI sent to sender room: ${senderRoom}`);
+
 
     // Broadcast message to the conversation room (both participants should be joined)
     io.to(chatId.toString()).emit("message", newMessage);
