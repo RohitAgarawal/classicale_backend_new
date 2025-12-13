@@ -16,6 +16,8 @@ import { io } from "../index.js";
 import { onlineUsers } from "../socket.js";
 import { saveBase64Image } from "../utils/image_store.js";
 import mongoose from "mongoose";
+import { UserModel } from "../model/user.js";
+import admin from "../utils/firebase.js";
 const productModels = {
   Bike: BikeModel,
   Car: CarModel,
@@ -286,7 +288,50 @@ export const sendMessage = async (req, res) => {
         });
         console.log(`📤 fetchAPI sent to sender room: ${senderRoom}`);
 
-///
+
+        // Send FCM Notification
+        try {
+          const recipientUser = await UserModel.findById(recipientId);
+          console.log("recipientUser", recipientUser.deviceToken);
+          if (recipientUser && recipientUser.deviceToken) {
+            const senderName = `${newMessage.senderId.fName[0]} ${newMessage.senderId.lName[0]}`;
+            // Ensure profileImage is a string (handle array or string)
+            let senderImg = "";
+            if (Array.isArray(newMessage.senderId.profileImage) && newMessage.senderId.profileImage.length > 0) {
+               senderImg = newMessage.senderId.profileImage[0];
+            } else if (typeof newMessage.senderId.profileImage === 'string') {
+               senderImg = newMessage.senderId.profileImage;
+            }
+
+            console.log(`📲 Sending FCM to ${recipientUser.fName[0]}`);
+
+            await admin.messaging().send({
+              token: recipientUser.deviceToken,
+              android: {
+                priority: 'high',
+              },
+              data: {
+                title: senderName,
+                body: content,
+                
+                type: 'chat_message',
+                chatId: conversationIdStr,
+                productId: String(productId),
+                senderId: senderIdStr,
+                senderName: senderName,
+                senderImage: senderImg,
+                productTypeId: String(productTypeId),
+                productUserId: senderIdStr,
+                productImage: " ",
+              }
+            });
+            console.log("✅ Notification sent successfully");
+          } else {
+             console.log("⚠️ Recipient has no device token, skipping notification.");
+          }
+        } catch (notifError) {
+           console.error("❌ Notification error:", notifError);
+        }
         return res.status(200).json({
           message: "Message sent successfully",
           status: 200,
@@ -808,6 +853,29 @@ export const sendImageMessage = async (req, res) => {
       conversationId: chatId.toString(),
     });
     console.log(`📤 fetchAPI sent to sender room: ${senderRoom}`);
+
+    // Send FCM Notification for Image
+    try {
+      const recipientUser = await UserModel.findById(recipientId);
+      if (recipientUser && recipientUser.deviceToken) {
+        console.log(`📲 Sending FCM notification to ${recipientUser.fName.first}`);
+        await admin.messaging().send({
+          notification: {
+            title: 'New Image',
+            body: '📷 Sent an image',
+          },
+          token: recipientUser.deviceToken,
+          data: {
+            type: 'chat_message',
+            chatId: chatId.toString(),
+            productId: productId,
+          }
+        });
+        console.log("✅ Notification sent successfully");
+      }
+    } catch (notifError) {
+       console.error("❌ Notification error:", notifError);
+    }
 
 
     // Broadcast message to the conversation room (both participants should be joined)

@@ -916,3 +916,30 @@ export const reportChat = async (req, res) => {
       .json({ message: "Server error", error: error.message });
   }
 };
+
+export const updateDeviceToken = async (req, res) => {
+  try {
+    const { userId, deviceToken } = req.body;
+    // console.log("Updating device token:", userId, deviceToken);
+
+    if (!userId || !deviceToken) {
+      return res.status(400).json({ message: "userId and deviceToken are required" });
+    }
+
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.deviceToken = deviceToken;
+    await user.save();
+
+    return res.status(200).json({ 
+      success: true, 
+      message: "Device token updated successfully" 
+    });
+  } catch (error) {
+    console.error("Error updating device token:", error);
+    return res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};

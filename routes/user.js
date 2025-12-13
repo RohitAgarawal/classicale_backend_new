@@ -16,6 +16,7 @@ import {
   repostProducts,
   createRating,
   reportChat,
+  updateDeviceToken,
 } from "../controller/user.js";
 import { upload } from "../upload.js";
 import authenticateUser from "../auth/middle.js";
@@ -33,6 +34,7 @@ router.put(
   "/updateUser",
   updateUser
 );
+router.put("/update-device-token", authenticateUser, updateDeviceToken);
 router.get("/getUserByID", authenticateUser, getUserByID);
 
 router.post("/checkBoth", authenticateUser, checkBothUser);

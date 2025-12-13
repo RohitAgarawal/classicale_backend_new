@@ -43,6 +43,15 @@ const UserSchema = new mongoose.Schema(
     aadhaarCardImage2: { type: [String] },
     aadharNumber: { type: [String] },
     role: { type: String, enum: ["admin", "user"] },
+    deviceToken: {
+      type: String,
+      default: "",
+    },
+    status: {
+      type: String,
+      enum: ["Active", "Inactive", "Delete", "Suspended", "Blocked"],
+      default: "Active",
+    },
     userCategory: { type: String, enum: ["A", "B", "α", "β"] },
     isVerified: { type: Boolean, default: false },
     isDeleted: { type: Boolean, default: false },
