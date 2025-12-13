@@ -31,7 +31,7 @@ export function removeUserFromSocket(userId) {
   }
 }
 
-// add user to socket
+// add user to socket 
 export function addUserToSocket(userId, socketId) {
   let sockets = onlineUsers.get(userId);
   if (!sockets) {
