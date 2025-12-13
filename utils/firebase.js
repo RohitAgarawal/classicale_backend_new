@@ -3,7 +3,25 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 
 // Import the service account key
-const serviceAccount = require("./classical-18d8e-firebase-adminsdk-fbsvc-f16082352e.json");
+// Import the service account key
+import fs from 'fs';
+import path from 'path';
+
+// Construct dynamic path or use default for dev fallback (though env var is preferred)
+const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH 
+  ? path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH)
+  : path.resolve("./utils/classical-18d8e-firebase-adminsdk-fbsvc-f16082352e.json");
+
+let serviceAccount;
+try {
+  if (fs.existsSync(serviceAccountPath)) {
+      serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+  } else {
+      console.error(`❌ Firebase Service Account file not found at: ${serviceAccountPath}`);
+  }
+} catch (e) {
+  console.error("❌ Error reading Firebase Service Account file:", e);
+}
 
 try {
   admin.initializeApp({

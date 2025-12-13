@@ -156,4 +156,5 @@ public/**/*.pdf
 
 # Don't ignore .public files and .gitkeep files
 !**/.public
-!**/.gitkeeputils/classical-18d8e-firebase-adminsdk-fbsvc-f16082352e.json
+!**/.gitkeep
+utils/classical-18d8e-firebase-adminsdk-fbsvc-f16082352e.json
