@@ -309,6 +309,7 @@ export const sendMessage = async (req, res) => {
               token: recipientUser.deviceToken,
               android: {
                 priority: 'high',
+                ttl: 2419200000, // 28 days in milliseconds
               },
               data: {
                 title: senderName,
