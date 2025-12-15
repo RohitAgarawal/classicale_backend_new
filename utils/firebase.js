@@ -7,7 +7,7 @@ import fs from 'fs';
 import path from 'path';
 
 // Construct dynamic path or use default for dev fallback (though env var is preferred)
-const serviceAccountPath = path.resolve("./classical-18d8e-firebase-adminsdk-fbsvc-f16082352e.json");
+const serviceAccountPath = path.resolve("./utils/classical-18d8e-firebase-adminsdk-fbsvc-f16082352e.json");
 
 let serviceAccount;
 try {
