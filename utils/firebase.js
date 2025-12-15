@@ -1,7 +1,6 @@
 import admin from 'firebase-admin';
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
-
 // Import the service account key
 // Import the service account key
 import fs from 'fs';
