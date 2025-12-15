@@ -20,6 +20,20 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Copy Firebase service account
+        run: |
+          FIREBASE_SRC="/var/www/backend/classical-18d8e-firebase-adminsdk-fbsvc-f16082352e.json"
+          FIREBASE_DEST="utils/classical-18d8e-firebase-adminsdk-fbsvc-f16082352e.json"
+
+          if [ -f "$FIREBASE_SRC" ]; then
+            cp "$FIREBASE_SRC" "$FIREBASE_DEST"
+            chmod 600 "$FIREBASE_DEST"
+            echo "✅ Firebase service account copied to utils/"
+          else
+            echo "❌ Firebase service account file not found at $FIREBASE_SRC"
+            exit 1
+          fi
+
       - name: Ensure .env is linked
         run: |
           if [ -f /var/www/backend/classicale_backend.env ]; then
