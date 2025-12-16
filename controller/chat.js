@@ -626,28 +626,63 @@ export const fetchAllConversations = async (req, res) => {
 
 export const fetchMessages = async (req, res) => {
   const { conversationId } = req.params;
+  const { page, limit, afterTimestamp } = req.query;
 
   try {
-    const messages = await CommunicateModel.find({
+    let query = {
       chatId: conversationId,
       deletedBy: { $nin: [req.user._id] }, // Use $nin for array field
-    })
+    };
+
+    if (afterTimestamp) {
+      query.createdAt = { $gt: new Date(afterTimestamp) };
+    }
+
+    let messagesQuery = CommunicateModel.find(query)
       .populate(
         "senderId",
         "_id name email profileImage phone fName lName mName gender"
-      )
-      .sort({ createdAt: 1 });
-    console.log("Request user ID:", req.user._id);
-    // console.log("Fetched messages:", messages);
-    if (!messages || messages.length === 0) {
-      // Added check for empty array
-      return res.status(404).json({ message: "Messages not found" });
+      );
+
+    if (afterTimestamp) {
+      // Sync mode: Get all new messages in chronological order (Oldest -> Newest)
+      messagesQuery = messagesQuery.sort({ createdAt: 1 });
+    } else {
+      // Pagination mode: Get history (Newest -> Oldest)
+      // Default to page 1, limit 20 if not provided
+      const pageNum = parseInt(page) || 1;
+      const limitNum = parseInt(limit) || 20;
+
+      messagesQuery = messagesQuery
+        .sort({ createdAt: -1 })
+        .skip((pageNum - 1) * limitNum)
+        .limit(limitNum);
     }
+
+    const messages = await messagesQuery;
+
+    console.log("Request user ID:", req.user._id);
+    
+    if (!messages) {
+      return res.status(200).json({ message: "Messages fetched successfully", data: [] });
+    }
+    
+    // Sanitize Response: content masking for Soft Deleted messages
+    const sanitizedMessages = messages.map(msg => {
+       if (msg.isDeleted) {
+          const obj = msg.toObject ? msg.toObject() : msg;
+          obj.content = "This message was deleted"; 
+          obj.metaData = {};
+          obj.type = "text"; // Reset type so frontend shows text bubble
+          return obj;
+       }
+       return msg;
+    });
 
     res.status(200).json({
       message: "Messages fetched successfully",
       status: 200,
-      data: messages,
+      data: sanitizedMessages,
     });
   } catch (error) {
     console.error("Error fetching messages:", error);
@@ -890,6 +925,50 @@ export const sendImageMessage = async (req, res) => {
   } catch (error) {
     console.error("Error sending image message:", error);
     res.status(500).json({ message: error.message });
+  }
+};
+
+// delete message for user (Soft Delete for Everyone)
+export const deleteMessage = async (req, res) => {
+  const { messageId } = req.params;
+  const { userId } = req.body;
+
+  try {
+    const message = await CommunicateModel.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    // Check if valid user (sender) is deleting?
+    // Usually only sender can "Unsend" (Delete for Everyone).
+    // Or maybe admin.
+    if (message.senderId.toString() !== userId) {
+        // If not sender, maybe just "delete for me"?
+        // But the requirement is "delete for both user".
+        // Usually restricted to sender.
+        // Let's assume restrictions apply.
+        return res.status(403).json({ message: "You can only delete your own messages for everyone" });
+    }
+
+    // Soft delete logic
+    message.isDeleted = true;
+    await message.save();
+    
+    // Notify room about deletion
+    // So frontend can update this specific message to "Deleted"
+    // We need to fetch conversationId to emit to room
+    const chatIdStr = message.chatId.toString();
+    
+    io.to(chatIdStr).emit("message_deleted", {
+      messageId: messageId,
+      chatId: chatIdStr
+    });
+
+
+    res.status(200).json({ message: "Message unsent successfully", status: 200 });
+  } catch (error) {
+    console.error("Error deleting message:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 

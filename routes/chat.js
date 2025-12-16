@@ -9,6 +9,7 @@ import {
   sendImageMessage,
   sendMessage,
   updateAllMessagesStatus,
+  deleteMessage,
 } from "../controller/chat.js";
 import authenticateUser from "../auth/middle.js";
 
@@ -35,4 +36,5 @@ router.get("/unread_message_count", authenticateUser, getUnreadMessageCount);
 router.post("/sent-image", authenticateUser, sendImageMessage);
 
 router.delete("/delete-conversation/:conversationId", deleteConversationForUser);
+router.delete("/delete-message/:messageId", authenticateUser, deleteMessage);
 export default router;

@@ -17,6 +17,7 @@ const CommunicateSchema = new mongoose.Schema(
     },
     status: { type: String, enum: ["sent", "delivered", "read"] },
     deletedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "user" }],
+    isDeleted: { type: Boolean, default: false },
   },
   {
     timestamps: true,
