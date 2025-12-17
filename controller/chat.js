@@ -593,6 +593,13 @@ export const fetchAllConversations = async (req, res) => {
           deletedBy: { $nin: [userId] }, // Don't count deleted messages
         });
 
+        // Mask content if message is deleted
+        if (lastMessage && lastMessage.isDeleted) {
+          lastMessage.content = "This message was deleted";
+          lastMessage.metaData = {};
+          lastMessage.type = "text";
+        }
+
         const productSchemaModel = conversation.productTypeId.modelName;
         const ProductModel = productModels[productSchemaModel];
         let product = null;
