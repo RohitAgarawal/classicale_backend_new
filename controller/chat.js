@@ -656,9 +656,9 @@ export const fetchMessages = async (req, res) => {
       messagesQuery = messagesQuery.sort({ createdAt: 1 });
     } else {
       // Pagination mode: Get history (Newest -> Oldest)
-      // Default to page 1, limit 20 if not provided
+      // Default to page 1, limit 100 if not provided
       const pageNum = parseInt(page) || 1;
-      const limitNum = parseInt(limit) || 20;
+      const limitNum = parseInt(limit) || 100;
 
       messagesQuery = messagesQuery
         .sort({ createdAt: -1 })
