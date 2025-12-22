@@ -844,7 +844,7 @@ export const sendImageMessage = async (req, res) => {
 
     const imageURL = saveBase64Image(
       content,
-      `chat/images/${senderId}`,
+      `images/chat/${chatId}`,
       fileName
     );
     if (!imageURL) {
@@ -863,56 +863,104 @@ export const sendImageMessage = async (req, res) => {
         mimeType,
       },
       status,
+      deletedBy: [], // Initialize empty deletedBy array
     });
 
-    // Update the conversation with the new message
-    await newMessage.save();
-    // Populate senderId
+    // Populate senderId for notifications and socket response
     await newMessage.populate("senderId");
     if (!newMessage) {
       return res.status(404).json({ message: "Message creation failed" });
     }
     
-    // Identify recipient (the other participant) - conversation already fetched above
+    // Identify recipient (the other participant)
     const recipientId = conversation.participants.find(
       (id) => id.toString() !== senderId
     );
-    console.log("recipientId", recipientId);
+
+    // Remove both users from deletedBy array in conversation to restore visibility
+    await ConversationModel.findByIdAndUpdate(chatId, {
+      $pull: {
+        deletedBy: {
+          $in: [senderId, recipientId],
+        },
+      },
+    });
     
-    
-    // Notify about new message (metadata refresh)
     const recipientIdStr = recipientId.toString();
     const senderIdStr = senderId.toString();
+    const chatIdStr = chatId.toString();
+
+    const recipientSocketId = onlineUsers.get(recipientIdStr);
+    const senderSocketId = onlineUsers.get(senderIdStr);
+
+    // Emit to conversation room first - matching text message format
+    console.log(`📤 Emitting image message to room: ${chatIdStr}`);
+    io.to(chatIdStr).emit("message", {
+      type: "new_message",
+      data: newMessage,
+    });
+
+    // Send notifications to individual sockets
+    if (recipientSocketId) {
+      io.to(recipientSocketId).emit("notification", {
+        type: "new_message",
+        data: newMessage,
+      });
+    }
+
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("notification", {
+        type: "message_sent",
+        data: newMessage,
+      });
+    }
+
+    // Notify both users to refresh their chat lists
+    console.log(`📤 Emitting fetchAPI to update chat lists`);
     const recipientRoom = `user-${recipientIdStr}`;
     const senderRoom = `user-${senderIdStr}`;
     
     io.to(recipientRoom).emit("fetchAPI", {
-      message: "fetch message",
-      conversationId: chatId.toString(),
+      message: "fetch conversations",
+      conversationId: chatIdStr,
     });
-    console.log(`📤 fetchAPI sent to recipient room: ${recipientRoom}`);
     
     io.to(senderRoom).emit("fetchAPI", {
-      message: "fetch message",
-      conversationId: chatId.toString(),
+      message: "fetch conversations",
+      conversationId: chatIdStr,
     });
-    console.log(`📤 fetchAPI sent to sender room: ${senderRoom}`);
 
     // Send FCM Notification for Image
     try {
       const recipientUser = await UserModel.findById(recipientId);
       if (recipientUser && recipientUser.deviceToken) {
-        console.log(`📲 Sending FCM notification to ${recipientUser.fName.first}`);
+        const senderName = `${newMessage.senderId.fName[0]} ${newMessage.senderId.lName[0]}`;
+        let senderImg = "";
+        if (Array.isArray(newMessage.senderId.profileImage) && newMessage.senderId.profileImage.length > 0) {
+           senderImg = newMessage.senderId.profileImage[0];
+        } else if (typeof newMessage.senderId.profileImage === 'string') {
+           senderImg = newMessage.senderId.profileImage;
+        }
+
+        console.log(`📲 Sending FCM image notification to ${recipientUser.fName[0]}`);
         await admin.messaging().send({
-          notification: {
-            title: 'New Image',
-            body: '📷 Sent an image',
-          },
           token: recipientUser.deviceToken,
+          android: {
+            priority: 'high',
+            ttl: 2419200000,
+          },
           data: {
+            title: senderName,
+            body: '📷 Sent an image',
             type: 'chat_message',
-            chatId: chatId.toString(),
-            productId: productId,
+            chatId: chatIdStr,
+            productId: String(productId),
+            senderId: senderIdStr,
+            senderName: senderName,
+            senderImage: senderImg,
+            productTypeId: String(conversation.productTypeId),
+            productUserId: senderIdStr,
+            productImage: " ",
           }
         });
         console.log("✅ Notification sent successfully");
@@ -922,8 +970,6 @@ export const sendImageMessage = async (req, res) => {
     }
 
 
-    // Broadcast message to the conversation room (both participants should be joined)
-    io.to(chatId.toString()).emit("message", newMessage);
 
     res.status(200).json({
       message: "Image message sent successfully",
