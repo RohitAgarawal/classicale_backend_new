@@ -35,12 +35,7 @@ export const saveBase64Image = (base64String, folderPath, filenamePrefix) => {
     console.log(`Saving image to: ${fullFolderPath}/${filename}`);
     
     if (!fs.existsSync(fullFolderPath)) {
-      throw new Error(`Folder path does not exist: ${fullFolderPath}`);
-    }
-
-
-
-    if (!fs.existsSync(fullFolderPath)) {
+      console.log(`Creating folder: ${fullFolderPath}`);
       fs.mkdirSync(fullFolderPath, { recursive: true });
     }
 
