@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 // root path of server
 const uploadsRoot = "/var/www/classical_uploads";
 
-// Utility to save a base64 image
+// Utility to save a base64 image 
 export const saveBase64Image = (base64String, folderPath, filenamePrefix) => {
   try {
     // console.log(base64String);
