@@ -273,9 +273,14 @@ export const userLogin = async (req, res) => {
       await sendEmail(email, "Your OTP Code", `Your OTP is: ${otp}`);
     }
 
+    // ✅ Generate Session Token
+    const sessionToken = crypto.randomBytes(16).toString("hex");
+    user.sessionToken = sessionToken;
+    await user.save();
+
     // ✅ Generate Token
     const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
+      { id: user._id, email: user.email, role: user.role, sessionToken },
       config.jwt.secret,
       { expiresIn: config.jwt.expiresIn }
     );
@@ -549,9 +554,14 @@ export const verifyPin = async (req, res) => {
     );
     console.info("Updated CodeModel for PIN:", pin);
 
+    // ✅ Generate Session Token
+    const sessionToken = crypto.randomBytes(16).toString("hex");
+    user.sessionToken = sessionToken;
+    await user.save();
+
     // ✅ Generate Token
     const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
+      { id: user._id, email: user.email, role: user.role, sessionToken },
       config.jwt.secret,
       { expiresIn: config.jwt.expiresIn }
     );
@@ -632,9 +642,14 @@ export const verifyOtp = async (req, res) => {
     user.otp = null; // Clear OTP
     user.otpExpire = null; // Clear OTP expiration time
     await user.save();
+    // ✅ Generate Session Token
+    const sessionToken = crypto.randomBytes(16).toString("hex");
+    user.sessionToken = sessionToken;
+    await user.save();
+
     // ✅ Generate Token
     const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
+      { id: user._id, email: user.email, role: user.role, sessionToken },
       config.jwt.secret,
       { expiresIn: config.jwt.expiresIn }
     );
