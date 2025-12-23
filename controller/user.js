@@ -1,5 +1,6 @@
 import { UserModel } from "../model/user.js";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { CodeModel } from "../model/pin.js";
 import mongoose from "mongoose";
