@@ -55,7 +55,7 @@ export const authenticateUser = async (req, res, next) => {
       return res.status(401).json({ error: "User not authenticated." });
     }
 
-    // ✅ Session verification
+    // ✅ Session verification 
     if (verifiedToken.sessionToken && user.sessionToken !== verifiedToken.sessionToken) {
       return res.status(401).json({ 
         code: "SESSION_INVALID", 
