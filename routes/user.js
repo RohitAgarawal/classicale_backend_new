@@ -32,6 +32,7 @@ router.post("/reset-password", resetPassword);
 router.post("/report-product", authenticateUser, repostProducts);
 router.put(
   "/updateUser",
+  authenticateUser,
   updateUser
 );
 router.put("/update-device-token", authenticateUser, updateDeviceToken);
@@ -51,7 +52,7 @@ router.get(
 
 router.post("/add_rating", authenticateUser, createRating);
   
-router.post("/report_chat", reportChat);
+router.post("/report_chat", authenticateUser, reportChat);
 
 export default router;
 

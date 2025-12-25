@@ -38,9 +38,9 @@ const memoryStorage = multer.memoryStorage();
 // Admin login route
 router.post("/login",adminLogin);
 
-router.get("/get_productS_Type",getProductType);
+router.get("/get_productS_Type", authenticateAdmin, getProductType);
 
-router.get("/get_product_with_type", getProductWithType);
+router.get("/get_product_with_type", authenticateAdmin, getProductWithType);
 
 router.get(
   "/get_user_by_userCategory",
@@ -49,7 +49,7 @@ router.get(
 );
 
 
-router.get("/get-product-by-id", getProductById);
+router.get("/get-product-by-id", authenticateAdmin, getProductById);
 router.get("/get_product", authenticateAdmin, getProductById);
 
 router.put("/update_product_for_admin", authenticateAdmin, updateProduct);

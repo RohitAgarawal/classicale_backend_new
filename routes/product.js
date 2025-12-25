@@ -23,54 +23,57 @@ import {
   getProductTypesWithSubCategories,
   trackProductView,
 } from "../controller/product.js";
-import { authenticateAdmin, authenticateUser } from "../auth/middle.js";
+import { authenticate } from "../auth/middle.js";
 // In routes or other files
 //import { protect, admin } from '../auth/productAuth.js';
 
 const router = express.Router();
 
-router.get("/get", authenticateUser,searchProduct);
-router.get("/showProduct", authenticateUser, showProduct);
-router.get("/getProduct", authenticateUser,showUserAddProduct);
-router.put("/update", authenticateUser, updateProduct);
-router.post("/favorites", authenticateUser, addFavoriteProduct);
+router.get("/get", authenticate,searchProduct);
+router.get("/showProduct", authenticate, showProduct);
+router.get("/getProduct", authenticate,showUserAddProduct);
+router.put("/update", authenticate, updateProduct);
+router.post("/favorites", authenticate, addFavoriteProduct);
 router.get(
   "/getFavoriteProduct/:userId",
-  authenticateUser,
+  authenticate,
   getFavoriteProducts
 );
-router.post("/add-other-product", authenticateUser, addOtherProduct);
+router.post("/add-other-product", authenticate, addOtherProduct);
 
-router.post("/add", authenticateUser, addProduct);
+router.post("/add", authenticate, addProduct);
 
-router.get("/get-product", authenticateUser, getAllProducts);
-router.get("/get-product-by-id", authenticateUser, getProductById);
-router.get("/get-product-by-category", authenticateUser, getProductByCategory);
-router.get("/get-product-by-userId", authenticateUser, getProductsByUser);
+router.get("/get-product", authenticate, getAllProducts);
+router.get("/get-product-by-id", authenticate, getProductById);
+router.get("/get-product-by-category", authenticate, getProductByCategory);
+router.get("/get-product-by-userId", authenticate, getProductsByUser);
 
 router.delete(
   "/softDelete/:productId/:productType",
-  authenticateUser,
+  authenticate,
   deleteProduct
 );
-router.delete("/delete-product-image", authenticateUser, deleteProductImage);
+router.delete("/delete-product-image", authenticate, deleteProductImage);
 router.post(
   "/product-active-inactive",
-  // authenticateAdmin,
+  authenticate,
   toggleProductVisibility
 );
-router.get("/get-product-type", authenticateUser, getProductType);
+router.get("/get-product-type", authenticate, getProductType);
 router.get(
   "/get-product-sub-type-by-id/:productSubTypeId",
+  authenticate,
   getSubProductType
 );
 router.get(
   "/get-get-product-types-with-sub-categories",
+  authenticate,
   getProductTypesWithSubCategories
 );
 
-router.post("/track-product-view", authenticateUser, trackProductView);
-router.get("/filter", filterProduct);
-router.get("/get-optimize-products", getAllProducts);
+router.post("/track-product-view", authenticate, trackProductView);
+router.get("/filter", authenticate, filterProduct);
+router.get("/get-optimize-products", authenticate, getAllProducts);
 
 export default router;
+

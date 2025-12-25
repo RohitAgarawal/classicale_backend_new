@@ -11,30 +11,30 @@ import {
   updateAllMessagesStatus,
   deleteMessage,
 } from "../controller/chat.js";
-import authenticateUser from "../auth/middle.js";
+import authenticate from "../auth/middle.js";
 
 const router = express.Router();
 
 router.post(
   "/fetch-exsisting-conversationId",
-  authenticateUser,
+  authenticate,
   fetchConversationId
 );
-router.post("/send-message", authenticateUser, sendMessage);
+router.post("/send-message", authenticate, sendMessage);
 router.get(
   "/get-all-messages/:conversationId",
-  authenticateUser,
+  authenticate,
   fetchMessages
 );
 router.get(
   "/get-all-conversations/:userId",
-  authenticateUser,
+  authenticate,
   fetchAllConversations
 );
-router.put("/update-message-status", authenticateUser, updateAllMessagesStatus);
-router.get("/unread_message_count", authenticateUser, getUnreadMessageCount);
-router.post("/sent-image", authenticateUser, sendImageMessage);
+router.put("/update-message-status", authenticate, updateAllMessagesStatus);
+router.get("/unread_message_count", authenticate, getUnreadMessageCount);
+router.post("/sent-image", authenticate, sendImageMessage);
 
-router.delete("/delete-conversation/:conversationId", deleteConversationForUser);
-router.delete("/delete-message/:messageId", authenticateUser, deleteMessage);
+router.delete("/delete-conversation/:conversationId", authenticate, deleteConversationForUser);
+router.delete("/delete-message/:messageId", authenticate, deleteMessage);
 export default router;

@@ -1,8 +1,8 @@
 import express from "express";
-import { getNotification } from "../controller/notification.js";
+import authenticate from "../auth/middle.js";
 
 const router = express.Router(); 
 
-router.get('/getNotification', getNotification);
+router.get('/getNotification', authenticate, getNotification);
 
 export default router;
