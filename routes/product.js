@@ -71,6 +71,7 @@ router.get(
   getProductTypesWithSubCategories
 );
 
+
 router.post("/track-product-view", authenticate, trackProductView);
 router.get("/filter", authenticate, filterProduct);
 router.get("/get-optimize-products", authenticate, getAllProducts);
