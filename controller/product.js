@@ -598,34 +598,55 @@ export const getFavoriteProducts = async (req, res) => {
       return res.status(404).json({ message: "User not found." });
     }
 
+    // Group product IDs by modelName to avoid N+1 query problem
+    const favoritesByModel = {};
+    user.favorite.forEach((fav) => {
+      if (!favoritesByModel[fav.modelName]) {
+        favoritesByModel[fav.modelName] = [];
+      }
+      favoritesByModel[fav.modelName].push(fav.productId);
+    });
+
     const favoriteProducts = [];
+    const populateOptions = [
+      { path: "productType" },
+      {
+        path: "subProductType",
+        select: "-modelName -productType",
+      },
+      {
+        path: "userId",
+        select:
+          "fName lName mName email phone profileImage state district country area ",
+      },
+    ];
 
-    for (const favoriteItem of user.favorite) {
-      const { productId, modelName } = favoriteItem;
-
+    for (const [modelName, productIds] of Object.entries(favoritesByModel)) {
       const ProductModel = productModels[modelName];
       if (ProductModel) {
-        const product = await ProductModel.findById(productId)
-          .populate({
-            path: "productType",
-          })
-          .populate({
-            path: "subProductType",
-            select: "-modelName -productType",
-          })
-          .populate({
-            path: "userId", // Correct field to populate
-            select:
-              "fName lName mName email phone profileImage state district country area ", // Only pull the fName of the user
-          });
-        if (product) {
-          favoriteProducts.push({
-            ...product._doc,
+        const products = await ProductModel.find({ _id: { $in: productIds } })
+          .populate(populateOptions)
+          .lean();
+
+        favoriteProducts.push(
+          ...products.map((p) => ({
+            ...p,
             modelName, // For frontend reference
-          });
-        }
+            isFavorite: true,
+          }))
+        );
       }
     }
+
+    // Restore original order if needed (optional, but good for UX)
+    const favoriteIdOrder = user.favorite.map((f) => f.productId.toString());
+    favoriteProducts.sort((a, b) => {
+      return (
+        favoriteIdOrder.indexOf(a._id.toString()) -
+        favoriteIdOrder.indexOf(b._id.toString())
+      );
+    });
+
     console.log("Favorites from DB:", user.favorite);
 
     return res.status(200).json({
@@ -807,7 +828,7 @@ export const getAllProducts = async (req, res) => {
     // ------------------------
     // Helper: Build aggregation pipeline
     // ------------------------
-    const buildPipeline = () => {
+    const buildPipeline = (userId) => {
       const pipeline = [];
 
       // ✅ Base match conditions
@@ -886,8 +907,36 @@ export const getAllProducts = async (req, res) => {
         $unwind: { path: "$subProductType", preserveNullAndEmptyArrays: true },
       });
 
+      // ✅ Add isFavorite field logic
+      if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+        pipeline.push({
+          $lookup: {
+            from: "users",
+            let: { productId: "$_id" },
+            pipeline: [
+              { $match: { _id: new mongoose.Types.ObjectId(userId) } },
+              { $project: { favorite: 1 } },
+              { $unwind: "$favorite" },
+              { $match: { $expr: { $eq: ["$favorite.productId", "$$productId"] } } },
+            ],
+            as: "favoriteData",
+          },
+        });
+        pipeline.push({
+          $addFields: {
+            isFavorite: { $gt: [{ $size: "$favoriteData" }, 0] },
+          },
+        });
+      } else {
+        pipeline.push({
+          $addFields: {
+            isFavorite: false,
+          },
+        });
+      }
+
       // Limit (for performance)
-      pipeline.push({ $limit: 50 });
+      pipeline.push({ $limit: 100 }); // increased limit slightly
 
       return pipeline;
     };
@@ -899,7 +948,7 @@ export const getAllProducts = async (req, res) => {
     let totalFound = 0;
 
     for (const [key, Model] of Object.entries(productModels)) {
-      const pipeline = buildPipeline();
+      const pipeline = buildPipeline(userId);
       const results = await Model.aggregate(pipeline);
       if (results.length > 0) {
         tempProducts[key] = results;
@@ -943,7 +992,7 @@ export const getProductById = async (req, res) => {
     }
 
     // Fetch the product
-    const product = await Model.findById(productId)
+    let product = await Model.findById(productId)
       .populate({
         path: "productType",
       })
@@ -954,11 +1003,27 @@ export const getProductById = async (req, res) => {
       .populate({
         path: "userId",
         select:
-          "fName lName mName email phone profileImage state district country area ", // Only pull the fName of the user
-      });
+          "fName lName mName email phone profileImage state district country area ",
+      })
+      .lean();
 
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
+    }
+
+    // Add isFavorite flag
+    const reqUserId = req.user?._id;
+    if (reqUserId && mongoose.Types.ObjectId.isValid(reqUserId)) {
+      const user = await UserModel.findById(reqUserId).select("favorite").lean();
+      if (user && user.favorite) {
+        product.isFavorite = user.favorite.some(
+          (f) => f.productId.toString() === productId
+        );
+      } else {
+        product.isFavorite = false;
+      }
+    } else {
+      product.isFavorite = false;
     }
 
     return res.status(200).json({
@@ -1079,11 +1144,29 @@ export const getProductsByUser = async (req, res) => {
         .populate({
           path: "userId",
           select:
-            "fName lName mName email phone profileImage state district country area ", // Only pull the fName of the user
-        });
+            "fName lName mName email phone profileImage state district country area ",
+        })
+        .lean();
 
       allUserProducts.push(...products);
     }
+
+    // Add isFavorite flag based on the REQUESTING user's favorites
+    const reqUserId = reqUser._id.toString();
+    const requestingUser = await UserModel.findById(reqUserId)
+      .select("favorite")
+      .lean();
+    if (requestingUser && requestingUser.favorite) {
+      const favoriteIds = new Set(
+        requestingUser.favorite.map((f) => f.productId.toString())
+      );
+      allUserProducts.forEach((p) => {
+        p.isFavorite = favoriteIds.has(p._id.toString());
+      });
+    } else {
+      allUserProducts.forEach((p) => (p.isFavorite = false));
+    }
+
     console.log(allUserProducts);
 
     return res.status(200).json({
@@ -1124,6 +1207,7 @@ export const searchProduct = async (req, res) => {
       area,
       city,
       state,
+      userId,
     } = req.query;
 
     const regex = new RegExp(keyword, "i");
@@ -1212,6 +1296,21 @@ export const searchProduct = async (req, res) => {
         .populate(populateOptions)
         .lean();
 
+      // ✅ Efficient isFavorite check for search results
+      if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+        const user = await UserModel.findById(userId).select("favorite");
+        if (user && user.favorite) {
+          const favoriteIds = new Set(user.favorite.map((fav) => fav.productId.toString()));
+          modelResults.forEach((p) => {
+            p.isFavorite = favoriteIds.has(p._id.toString());
+          });
+        } else {
+          modelResults.forEach((p) => (p.isFavorite = false));
+        }
+      } else {
+        modelResults.forEach((p) => (p.isFavorite = false));
+      }
+
       results.push(...modelResults.map((p) => ({ ...p, type: modelName })));
     }
 
@@ -1293,6 +1392,24 @@ export const filterProduct = async (req, res) => {
         )
       );
       allProducts = results.flat();
+    }
+
+    // Add isFavorite flag
+    const userId = req.query.userId || req.user?._id;
+    if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+      const user = await UserModel.findById(userId).select("favorite").lean();
+      if (user && user.favorite) {
+        const favoriteIds = new Set(
+          user.favorite.map((f) => f.productId.toString())
+        );
+        allProducts.forEach((p) => {
+          p.isFavorite = favoriteIds.has(p._id.toString());
+        });
+      } else {
+        allProducts.forEach((p) => (p.isFavorite = false));
+      }
+    } else {
+      allProducts.forEach((p) => (p.isFavorite = false));
     }
 
     if (minPrice || maxPrice) {

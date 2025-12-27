@@ -24,7 +24,7 @@ import AboutUsRouter from "./routes/about_us.js";
 import { AboutUs } from "./model/about_us.js";
 import AppGuidevideoRouter from "./routes/appGuidevideo.js";
 import SupportChatRouter from "./routes/support_chat.js";
-
+import os from "os";
 
 const app = express();
 // Increase body size limits to support large base64 video uploads.
@@ -211,8 +211,19 @@ app.use("/api/support", SupportChatRouter);
 
 
 if (config.nodeEnv === "dev") {
-  server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+  server.listen(PORT, "0.0.0.0",() => {
+    console.log(`Server running on port localhost:${PORT}`);
+
+  const interfaces = os.networkInterfaces();
+    Object.values(interfaces).forEach((iface) => {
+    iface?.forEach((details) => {
+      if (details.family === "IPv4" && !details.internal) {
+        console.log(
+          `🌐 Accessible on LAN: http://${details.address}:${PORT}`
+        );
+      }
+    });
+  });
   });
 } else {
   server.listen(PORT, "127.0.0.1", () => {
