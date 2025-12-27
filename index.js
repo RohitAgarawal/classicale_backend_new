@@ -219,7 +219,7 @@ if (config.nodeEnv === "dev") {
     iface?.forEach((details) => {
       if (details.family === "IPv4" && !details.internal) {
         console.log(
-          `🌐 Accessible on LAN: http://${details.address}:${PORT}`
+          `🌐 Accessible  on LAN: http://${details.address}:${PORT}`
         );
       }
     });
