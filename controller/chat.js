@@ -363,6 +363,8 @@ export const sendMessage = async (req, res) => {
 export const fetchConversationId = async (req, res) => {
     const { userId, productUserId, productId } = req.body;
 
+    try {
+
     if (!userId || !productUserId || !productId) {
       return res.status(400).json({ 
         message: "userId, productUserId, and productId are required",
